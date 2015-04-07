@@ -16,6 +16,7 @@
     .anmelden_wrapper {
       .anmelden_button {
         background: @button-image no-repeat;
+        background-size: contain;
       }
     }
   }
@@ -203,10 +204,10 @@
     .specific-course-tabs(@hso-executive; url(../images/ex_bg_tabs.jpg); url(../images/ex_anmelden_2.png); #dfdfdf; #efefef);
   }
   body.lccollege_section & {
-    .specific-course-tabs(@hso-learncoach; url(../images/lc_bg_tabs.png); url(../images/ex_anmelden_2.png); lighten(@hso-learncoach, 55%); lighten(@hso-learncoach, 65%));
+    .specific-course-tabs(@hso-learncoach; url(../images/lc_bg_tabs.png); url(../images/lc_anmelden_2.png); lighten(@hso-learncoach, 55%); lighten(@hso-learncoach, 65%));
   }
   body.langcollege_section & {
-    .specific-course-tabs(@hso-sprachen; url(../images/lang_bg_tabs.png); url(../images/ex_anmelden_2.png); lighten(@hso-sprachen, 55%); lighten(@hso-sprachen, 65%));
+    .specific-course-tabs(@hso-sprachen; url(../images/lang_bg_tabs.png); url(../images/lang_anmelden_2.png); lighten(@hso-sprachen, 55%); lighten(@hso-sprachen, 65%));
   }
 
 }

@@ -1,0 +1,19 @@
+Specific Project Details:
+
+Changes in Modules (Patches)
+============================
+1)
+
+
+Locked Modules (no update)
+===================
+1) Keep addressfield 7.x-1.0-rc1 (V1.0 has errors)
+
+
+Security settings Going LIVE
+============================
+1) Run security review (fix reported security threads)
+2) Run MD5 Check to create checksum for all modules
+3) Setup aes security (use key in db)
+4) DB backup only with encryption (see Backup and migrate)
+drush

@@ -2213,6 +2213,7 @@ body.kvcollege_section .view-course-tabs .ui-tabs .tab_scroll .ui-tabs-nav li.ui
 }
 body.kvcollege_section .view-course-tabs .ui-tabs-panel .anmelden_wrapper .anmelden_button {
   background: url(../images/kv_anmelden_2.png) no-repeat;
+  background-size: contain;
 }
 body.kvcollege_section .view-course-tabs #programm table.lektionplan tr th {
   border-bottom: 4px solid #94ba40;
@@ -2244,6 +2245,7 @@ body.hscollege_section .view-course-tabs .ui-tabs .tab_scroll .ui-tabs-nav li.ui
 }
 body.hscollege_section .view-course-tabs .ui-tabs-panel .anmelden_wrapper .anmelden_button {
   background: url(../images/hs_anmelden_2.png) no-repeat;
+  background-size: contain;
 }
 body.hscollege_section .view-course-tabs #programm table.lektionplan tr th {
   border-bottom: 4px solid #e77431;
@@ -2275,6 +2277,7 @@ body.kscollege_section .view-course-tabs .ui-tabs .tab_scroll .ui-tabs-nav li.ui
 }
 body.kscollege_section .view-course-tabs .ui-tabs-panel .anmelden_wrapper .anmelden_button {
   background: url(../images/ks_anmelden_2.png) no-repeat;
+  background-size: contain;
 }
 body.kscollege_section .view-course-tabs #programm table.lektionplan tr th {
   border-bottom: 4px solid #78729e;
@@ -2306,6 +2309,7 @@ body.excollege_section .view-course-tabs .ui-tabs .tab_scroll .ui-tabs-nav li.ui
 }
 body.excollege_section .view-course-tabs .ui-tabs-panel .anmelden_wrapper .anmelden_button {
   background: url(../images/ex_anmelden_2.png) no-repeat;
+  background-size: contain;
 }
 body.excollege_section .view-course-tabs #programm table.lektionplan tr th {
   border-bottom: 4px solid #b1a896;
@@ -2336,7 +2340,8 @@ body.lccollege_section .view-course-tabs .ui-tabs .tab_scroll .ui-tabs-nav li.ui
   background-color: #fff;
 }
 body.lccollege_section .view-course-tabs .ui-tabs-panel .anmelden_wrapper .anmelden_button {
-  background: url(../images/ex_anmelden_2.png) no-repeat;
+  background: url(../images/lc_anmelden_2.png) no-repeat;
+  background-size: contain;
 }
 body.lccollege_section .view-course-tabs #programm table.lektionplan tr th {
   border-bottom: 4px solid #009251;
@@ -2367,7 +2372,8 @@ body.langcollege_section .view-course-tabs .ui-tabs .tab_scroll .ui-tabs-nav li.
   background-color: #fff;
 }
 body.langcollege_section .view-course-tabs .ui-tabs-panel .anmelden_wrapper .anmelden_button {
-  background: url(../images/ex_anmelden_2.png) no-repeat;
+  background: url(../images/lang_anmelden_2.png) no-repeat;
+  background-size: contain;
 }
 body.langcollege_section .view-course-tabs #programm table.lektionplan tr th {
   border-bottom: 4px solid #005799;
@@ -3234,6 +3240,32 @@ body.excollege_section .block-views-contacts-block-course-contacts .content ul.h
 }
 body.excollege_section #block-views-contacts-block-segment-contacts .content ul.header_links li a.active,
 body.excollege_section .block-views-contacts-block-course-contacts .content ul.header_links li a.active {
+  color: #fff;
+}
+body.lccollege_section #block-views-contacts-block-segment-contacts,
+body.lccollege_section .block-views-contacts-block-course-contacts {
+  background: #009251;
+}
+body.lccollege_section #block-views-contacts-block-segment-contacts .content ul.header_links li a,
+body.lccollege_section .block-views-contacts-block-course-contacts .content ul.header_links li a {
+  color: #e7e5de;
+  background: #008349;
+}
+body.lccollege_section #block-views-contacts-block-segment-contacts .content ul.header_links li a.active,
+body.lccollege_section .block-views-contacts-block-course-contacts .content ul.header_links li a.active {
+  color: #fff;
+}
+body.langcollege_section #block-views-contacts-block-segment-contacts,
+body.langcollege_section .block-views-contacts-block-course-contacts {
+  background: #005799;
+}
+body.langcollege_section #block-views-contacts-block-segment-contacts .content ul.header_links li a,
+body.langcollege_section .block-views-contacts-block-course-contacts .content ul.header_links li a {
+  color: #e7e5de;
+  background: #004e8a;
+}
+body.langcollege_section #block-views-contacts-block-segment-contacts .content ul.header_links li a.active,
+body.langcollege_section .block-views-contacts-block-course-contacts .content ul.header_links li a.active {
   color: #fff;
 }
 /*
