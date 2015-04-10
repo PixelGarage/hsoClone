@@ -30,12 +30,14 @@
 <div class="<?php print $classes; ?>">
   <?php print render($title_prefix); ?>
   <?php print render($title_suffix); ?>
-	<div class="view-header">
-		<a href="<?php print url(arg(0)); ?>" class="first">Alle</a>
-		<?php foreach (range('A', 'Z') as $letter): ?>
-			<a href="<?php print url(arg(0) . '/' . $letter); ?>"><?php print $letter; ?></a>
-		<?php endforeach; ?>
-	</div>
+  <?php if ($view->current_display != 'page'): ?>
+  	<div class="view-header">
+		  <a href="<?php print url(arg(0)); ?>" class="first">Alle</a>
+		  <?php foreach (range('A', 'Z') as $letter): ?>
+			  <a href="<?php print url(arg(0) . '/' . $letter); ?>"><?php print $letter; ?></a>
+		  <?php endforeach; ?>
+	  </div>
+  <?php endif; ?>
   <?php if ($rows): ?>
     <div class="view-content">
       <?php print $rows; ?>
