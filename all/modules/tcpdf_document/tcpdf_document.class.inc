@@ -112,6 +112,12 @@ class PDFDocument extends TCPDF {
 
     // set font
     $this->SetFont($font_family, '', 8);
+
+    // HTML+CSS settings: css margin not implemented, use htmlVSpace to define top / bottom margin of html tags
+    $this->setHtmlVSpace(array('h1' => array(array('h' => 1, 'n' => 3), array('h' => 1, 'n' => 2))));
+    $this->setHtmlVSpace(array('h2' => array(array('h' => 1, 'n' => 2), array('h' => 1, 'n' => 1))));
+    $this->setHtmlVSpace(array('p' => array(array('h' => 1, 'n' => 0.1), array('h' => 1, 'n' => 0.5))));
+
     $this->AddPage();
   }
 

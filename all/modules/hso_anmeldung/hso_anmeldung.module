@@ -283,9 +283,7 @@ function _hso_make_anmeldung_pdf($location, $segment, $contact, $grussformel, $c
   // get brand specific html file
   $brand_short = taxonomy_term_load($course_time_node->field_brand[LANGUAGE_NONE][0]['tid'])->name;
   $brand = ($brand_short != 'HSO') ? '_' . strtolower($brand_short) : '';
-  $brand = '_tidy';
-  $html_file = drupal_get_path('module', 'hso_anmeldung') . '/html_templates/' . $template . '_anmeldung_template' .
-              ($to_client ? '_logo' : '') . $brand . '.html';
+  $html_file = drupal_get_path('module', 'hso_anmeldung') . '/html_templates/' . $template . '_anmeldung_template' . $brand . '.html';
 
   // replace tokens in html file, if it exists
   if (file_exists($html_file)) {
@@ -295,11 +293,7 @@ function _hso_make_anmeldung_pdf($location, $segment, $contact, $grussformel, $c
     $doc = new DOMDocument();
     $doc->loadHTML($html_processed);
     $doc->normalizeDocument();
-    $styles = $doc->getElementsByTagName('style');
-    $pdf_string = '';
-    foreach ($styles as $style) {
-      $pdf_string .= "<style>\n" . $style->nodeValue . "</style>\n";
-    }
+    $pdf_string = $doc->saveHTML($doc->getElementsByTagName('style')->item(0));
     $pdf_string .= $doc->saveHTML($doc->getElementsByTagName('body')->item(0));
 
     // convert html string to pdf
@@ -309,11 +303,13 @@ function _hso_make_anmeldung_pdf($location, $segment, $contact, $grussformel, $c
       'title' => $to_client ? 'Anmeldereservation' : 'Anmeldung',
       'subject' => $brand_short,
       'author' => $brand_short,
-      'keywords' => $brand_short . 'Anmeldung, pdf, Drupal, Pixelgarage',
+      'keywords' => $brand_short . 'Anmeldung, tcpdf, PDF, Drupal, Pixelgarage',
       'header' => array(
         'callback' => array(
           'function' => '_hso_add_pdf_header',
           'context' => array(
+            'client_copy' => $to_client ? 'yes' : 'no',
+            'brand' => strtolower($brand_short),
           ),
         ),
       ),
@@ -326,7 +322,8 @@ function _hso_make_anmeldung_pdf($location, $segment, $contact, $grussformel, $c
       ),
     );
     $pdf = tcpdf_document_instance($options);
-    $pdf->writeHtml($pdf_string);
+    $pdf->setHtmlVSpace(array('p' => array(array('h' => 1, 'n' => 0.1), array('h' => 1, 'n' => 0.1))));
+    $pdf->writeHtml($pdf_string, true, false, true, false, '');
     $pdf->lastPage();
     $pdf->Output($filepath, 'F');
 
@@ -389,7 +386,11 @@ function _hso_make_h4i($course, $course_time_node, $webform_components, $submiss
  * @param $context
  */
 function _hso_add_pdf_header(&$pdf_document, $context) {
-
+  if ($context['client_copy'] == 'yes') {
+    // draw Logo top right, if document is for client
+    $image_file = drupal_get_path('module', 'hso_anmeldung') . '/html_templates/template_logo_' . $context['brand'] . '.png';
+    $pdf_document->Image($image_file, 5, 10, 30, '', '', '', 'T', 2, 300, 'R');
+  }
 }
 
 /**
@@ -398,7 +399,7 @@ function _hso_add_pdf_header(&$pdf_document, $context) {
  * @param $context
  */
 function _hso_add_pdf_footer(&$pdf_document, $context) {
-
+  // no footer
 }
 
 
