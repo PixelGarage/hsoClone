@@ -144,7 +144,7 @@ function hso_anmeldung_mail_alter(&$message) {
 							'%gruss_formel%' => $grussformel,
 							'%contact_name%' => $contact ? $contact->title : '',
 							'%contact_phone%' => $contact ? $contact->field_phone[LANGUAGE_NONE][0]['value'] : '',
-              '%course_time_variante%' => $course_time_node ? $course_time_node->body[LANGUAGE_NONE][0]['value'] : '',
+              '%course_time_variante%' => !empty($course_time_node->body) ? $course_time_node->body[LANGUAGE_NONE][0]['value'] : '',
 						);
 
             // replace tokens with values in mail and complete mail with attachment and address
@@ -249,7 +249,7 @@ function _hso_make_anmeldung_pdf($location, $segment, $contact, $grussformel, $c
 		$to_search['%NOFMODULE%'] = $mod_count;
 		$to_search['%KOSTEN%'] = $mod_count * 65;
 	} 
-	$course_time_description = strip_tags($course_time_node->body[LANGUAGE_NONE][0]['value']);
+	$course_time_description = !empty($course_time_node->body) ? strip_tags($course_time_node->body[LANGUAGE_NONE][0]['value']) : '';
 	$to_search['%ADDITIONALFIELDS%'] = implode(PHP_EOL, $additional_fields);
 	$to_search['%LEHRGANG%'] = $course->title . (empty($course_time_description) ? '' : ', ' . $course_time_description);
   $to_search['%ABTEILUNG%'] = $segment ? $segment->name : '-';
@@ -277,9 +277,6 @@ function _hso_make_anmeldung_pdf($location, $segment, $contact, $grussformel, $c
   $to_search['%COSTS%'] = 'CHF ' . $course_time_node->field_brutto_price[LANGUAGE_NONE][0]['value'];
   $to_search['%GRUSSFORMEL%'] = $grussformel;
 
-  // correct encoding for token values
-	$to_replace = array_map('_hso_convert_encoding', $to_search);
-
   // get brand specific html file
   $brand_short = taxonomy_term_load($course_time_node->field_brand[LANGUAGE_NONE][0]['tid'])->name;
   $brand = ($brand_short != 'HSO') ? '_' . strtolower($brand_short) : '';
@@ -287,14 +284,13 @@ function _hso_make_anmeldung_pdf($location, $segment, $contact, $grussformel, $c
 
   // replace tokens in html file, if it exists
   if (file_exists($html_file)) {
-  	$html_string = file_get_contents($html_file);
-  	$html_processed = str_replace(array_keys($to_search), $to_replace, $html_string);
     //libxml_use_internal_errors(true);
     $doc = new DOMDocument();
-    $doc->loadHTML($html_processed);
+    $doc->loadHTMLFile($html_file);
     $doc->normalizeDocument();
     $pdf_string = $doc->saveHTML($doc->getElementsByTagName('style')->item(0));
     $pdf_string .= $doc->saveHTML($doc->getElementsByTagName('body')->item(0));
+    $pdf_string = str_replace(array_keys($to_search), array_values($to_search), $pdf_string);
 
     // convert html string to pdf
     $dir_uri = file_stream_wrapper_get_instance_by_uri('private://anmeldung');
@@ -342,10 +338,6 @@ function _hso_make_anmeldung_pdf($location, $segment, $contact, $grussformel, $c
     watchdog('Create Anmeldung PDF', 'The template file @file does not exist.', array('@file' => $html_file), WATCHDOG_ERROR);
 
   }
-}
-
-function _hso_convert_encoding($text) {
-	return mb_convert_encoding($text, 'ISO-8859-1', 'UTF-8');
 }
 
 function _hso_make_h4i($course, $course_time_node, $webform_components, $submission) {
