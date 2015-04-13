@@ -207,14 +207,6 @@ class HSO
       $course->segment_id = $row->department_id;
       $course->title = $row->webRegistrationTitle;
       $course->is_module = $row->type == 'MODUL';
-      // legacy fields
-      $course->price = (float)0;
-      $course->price_detailed = '';
-      $course->tracking_price = 0;
-      $course->min_places = 0;
-      $course->max_places = 0;
-      $course->template = 'default';
-      $course->no_registration_fee = null;
       // create meta object
       $course->meta = new StdClass();
       $course->meta->title = $row->webRegistrationTitleMeta;
@@ -244,14 +236,6 @@ class HSO
       $course->segment_id = $row->department_id;
       $course->title = $row->webRegistrationTitle;
       $course->is_module = $row->type == 'MODUL';
-      // legacy fields
-      $course->price = (float)0;
-      $course->price_detailed = '';
-      $course->tracking_price = 0;
-      $course->min_places = 0;
-      $course->max_places = 0;
-      $course->template = 'default';
-      $course->no_registration_fee = null;
       // create meta object
       $course->meta = new StdClass();
       $course->meta->title = $row->webRegistrationTitleMeta;
@@ -282,14 +266,6 @@ class HSO
       $course->segment_id = $row->department_id;
       $course->title = $row->webRegistrationTitle;
       $course->is_module = $row->type == 'MODUL';
-      // legacy fields
-      $course->price = (float)0;
-      $course->price_detailed = '';
-      $course->tracking_price = 0;
-      $course->min_places = 0;
-      $course->max_places = 0;
-      $course->template = 'default';
-      $course->no_registration_fee = null;
       // create meta object
       $course->meta = new StdClass();
       $course->meta->title = $row->webRegistrationTitleMeta;
