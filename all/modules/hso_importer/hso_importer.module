@@ -512,10 +512,46 @@ function _hso_process_contact($contact) {
 	$node->field_location[LANGUAGE_NONE][0]['target_id'] = $contact->location_nid;
 	$node->field_segment[LANGUAGE_NONE][] = array('tid' => $contact->segment_tid);
   $node->field_course[LANGUAGE_NONE][0]['target_id'] = $contact->course_nid;
-	$node = node_submit($node);
-	node_save($node);
+  // contact picture
+  if ($file = _hso_get_contact_picture($contact)) {
+    $node->field_picture[LANGUAGE_NONE][0] = (array)$file;
+    $node = node_submit($node);
+    node_save($node);
+  } else {
+    $node = node_submit($node);
+    node_save($node);
+  }
 	$already_processed[$contact->id] = $node->nid;
 	return $node->nid;
+}
+
+function _hso_get_contact_picture($contact) {
+  $path = $contact->picture;
+  if (!file_exists($path)) {
+    $path = 'public://user_pictures/default.jpg';
+  }
+  // get/ create user picture object
+  $query = new EntityFieldQuery();
+  $query->entityCondition('entity_type', 'file')
+    ->propertyCondition('uri', $path)
+    ->range(0, 1);
+  $result = $query->execute();
+  if (isset($result['file'])) {
+    // get existing
+    $file = file_load(key($result['file']));
+
+  } else {
+    $file           = new stdClass;
+    $file->uid      = 1;
+    $file->filename = $contact->id . '.jpg';
+    $file->uri      = $path;
+    $file->filemime = file_get_mimetype($path);
+    $file->filesize = filesize($path);
+    $file->status   = 1;
+    $file           = file_save($file);
+
+  }
+  return $file;
 }
 
 /**
