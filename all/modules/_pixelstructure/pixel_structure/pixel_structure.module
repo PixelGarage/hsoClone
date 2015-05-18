@@ -1,0 +1,172 @@
+<?php
+/**
+ * Provides a light-weight interface to externalize site structures to code, e.g. views, nodes, taxonomies etc.
+ *
+ * User: ralph
+ * Date: 27.04.15
+ * Time: 16:57
+ */
+
+/* =============================================================================
+ *   Configuration form to manage content types
+ * ========================================================================== */
+/**
+ * Implements hook_help().
+ */
+function pixel_structure_help($path, $arg) {
+  switch ($path) {
+    case 'admin/help#pixel_structure':
+    case 'admin/structure/pixel_structure':
+      $output = '<p>' . t('Manage content types between different sites (e.g. development, stage and Live sites)');
+      $output .= '<br>' . t('All nodes found in the database and in the "nodes" folder inside the pixel_structure module are listed here and can be managed. ');
+      $output .= '<br><br>' . t('<strong>CAUTION!</strong> Deletion of a content type deletes all content of the corresponding content type irrevocably.');
+      $output .= '</p>';
+
+      return $output;
+  }
+}
+
+/**
+ * Implements hook_menu.
+ */
+function pixel_structure_menu() {
+  $items['admin/structure/pixel_structure'] = array(
+    'title' => 'Pixel structure',
+    'description' => 'Externalize structures like views, nodes and taxonomies to code.',
+    'page callback' => 'pixel_structure_node_type_list',
+    'access callback' => 'user_access',
+    'access arguments' => array('administer pixel structures'),
+    'type' => MENU_NORMAL_ITEM,
+    'file' => 'pixel_structure.admin.inc',
+  );
+  $items['admin/structure/pixel_structure/manage/%/import'] = array(
+    'title' => 'Import node type',
+    'page callback' => 'pixel_structure_node_type_import',
+    'page arguments' => array(4),
+    'access callback' => 'user_access',
+    'access arguments' => array('administer pixel structures'),
+    'type' => MENU_CALLBACK,
+    'file' => 'pixel_structure.admin.inc',
+  );
+  $items['admin/structure/pixel_structure/manage/%/export'] = array(
+    'title' => 'Export node type',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('pixel_structure_node_type_export_form', 4),
+    'access callback' => 'user_access',
+    'access arguments' => array('administer pixel structures'),
+    'type' => MENU_CALLBACK,
+    'file' => 'pixel_structure.admin.inc',
+  );
+  $items['admin/structure/pixel_structure/manage/%/delete'] = array(
+    'title' => 'Delete node type',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('pixel_structure_node_type_delete_confirm', 4),
+    'access callback' => 'user_access',
+    'access arguments' => array('administer pixel structures'),
+    'type' => MENU_CALLBACK,
+    'file' => 'pixel_structure.admin.inc',
+  );
+  $items['admin/structure/pixel_structure/manage/%/clone'] = array(
+    'title' => 'Clone quicktab',
+    'page callback' => 'pixel_structure_node_type_clone',
+    'page arguments' => array(4),
+    'access callback' => 'user_access',
+    'access arguments' => array('administer pixel structures'),
+    'type' => MENU_CALLBACK,
+    'file' => 'pixel_structure.admin.inc',
+  );
+  return $items;
+}
+
+/**
+ * Implements hook_permission().
+ */
+function pixel_structure_permission() {
+  return array(
+    'administer pixel structures' => array(
+      'title' => t('Administer pixel structures'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_views_api().
+ */
+function pixel_structure_views_api() {
+  return array('api' => 3);
+}
+
+
+/* =============================================================================
+ *   Export / import nodes
+ * ========================================================================== */
+/**
+ * Read the node type data from the export file, if it exists and contains import data.
+ *
+ * @param $node_type  string  The node type machine name.
+ *
+ * @return mixed    Returns an associative array with the import data, if available. Otherwise returns FALSE.
+ */
+function pixel_structure_node_type_import_data($node_type) {
+  // file path
+  $filepath = drupal_get_path('module', 'pixel_structure') . '/nodes/' . $node_type . '.node';
+  if (!file_exists($filepath)) return FALSE;
+
+  // import node type data
+  if (($file = file_get_contents($filepath)) !== false) {
+    // delete php tag, if any
+    $file = str_replace('<?php', '', $file);
+
+    // get node type and export time from file and return import array
+    if (eval($file) !== false && isset($data) && is_array($data)) {
+      // get export timestamp in file
+      $code_exported = isset($export_time) ? $export_time : 0;
+
+      // Create array entries.
+      foreach ($data['bundles'] as $key => $bundle) {
+        $title = $key; // fallback for title is machine name
+        if (is_object($bundle)) {
+          $title = $bundle->name;
+        }
+        elseif (is_array($bundle)) {
+          $title = $bundle['name'];
+        }
+
+        return array(
+          'title' => $title,
+          'storage' => NODE_TYPE_IN_CODE,
+          'code_exported' => $code_exported,
+          'data' => $file,
+          'values' => array('macro' => $file), // compatibility to bundle_copy
+        );
+      }
+    }
+  }
+
+  // file has no import data
+  return FALSE;
+}
+
+/**
+ * Export the node type in the DB to an export file.
+ *
+ * @param $node_type  string  The content type
+ * @param $nt_data  array   An associative array holding the node type export data. Array structure is as follows:
+ *                          array('title'=> name, 'code_exported' => export_timestamp, 'data' => export data as string)
+ */
+function pixel_structure_node_type_export_data($node_type, $nt_data) {
+  // export node type to file (create or update)
+  $code_exported = $nt_data['code_exported'];
+  variable_set('pixel_structure_last_import_export_' . $node_type, $code_exported);
+  $filepath = drupal_get_path('module', 'pixel_structure') . '/nodes/' . $node_type . '.node';
+  $data = "<?php\n\$export_time = " . $code_exported . ";\n" . $nt_data['data'];
+
+  if (file_put_contents($filepath, $data) === FALSE) {
+    drupal_set_message(t('Node type "%node" could not be exported to file %file .', array('%node' => $nt_data['title'], '%file' => $filepath)), 'error');
+
+  } else {
+    drupal_set_message(t('Node type "%node" has been successfully exported to file %file .', array('%node' => $nt_data['title'], '%file' => $filepath)));
+
+  }
+}
+
