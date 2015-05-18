@@ -6,153 +6,240 @@
  * Time: 18:01
  */
 
+/* =============================================================================
+ *   Constants
+ * ========================================================================== */
 /**
  * A bit flag used to let us know if a node type is in the database.
  */
-define('NODE_TYPE_IN_DATABASE', 0x01);
+define('ENTITY_TYPE_IN_DATABASE', 0x01);
 
 /**
  * A bit flag used to let us know if a node type is in code and not imported yet.
  */
-define('NODE_TYPE_IN_CODE', 0x02);
+define('ENTITY_TYPE_IN_CODE', 0x02);
 
 
-
+/* =============================================================================
+ *   Main form
+ * ========================================================================== */
 /**
- * Page callback to list all node types in code and db in a table. THe node types can be managed on this page.
+ * Page callback for the pixel structure summary list. All changed
+ * bundles per entity type are listed and bulk operations for import and export are provided.
  *
- * @return array    The render array of the table.
+ * @param $form
+ * @param $form_state
  */
-function pixel_structure_node_type_list() {
+function pixel_structure_summary_list() {
+  $bc_info = bundle_copy_get_info();
+
+  // define summary page
+  $page = array();
+  foreach ($bc_info as $entity_type => $info) {
+    $module = $entity_type == 'taxonomy_term' ? 'taxonomy' : $entity_type;
+    if (!module_exists($module)) continue;
+
+    // add table of changed bundles
+    $title = drupal_ucfirst(str_replace('_', ' ', $entity_type));
+    $table = pixel_structure_entity_type_list($entity_type, TRUE);
+    $page[$entity_type]['table'] = $table;
+    $page[$entity_type]['#prefix'] = '<div><br><h2>' . $title . 's</h2>';
+    $page[$entity_type]['#suffix'] = '</div><br>';
+
+    // add bulk import link, if changed bundles are available
+    if (count($table['#rows']) > 0) {
+      $url = 'admin/structure/pixel_structure/' . $entity_type. '/import_changed';
+      $options = array('attributes' => array('class' => array('button'), 'style' => 'float: right'));
+      $page[$entity_type]['#suffix'] = '</div><div>' . l(t('Import All'), $url, $options) . '</div><br>';
+    }
+  }
+  $page['#suffix'] = '<br><br>';
+
+  return $page;
+}
+
+
+/* =============================================================================
+ *   Entity type manage forms and callbacks
+ * ========================================================================== */
+/**
+ * Page callback to list all bundles of an entity type available in code and in the db in a table.
+ * Optionally only changed bundles in code can be output. The list contains operations for each bundle, e.g
+ * the bundles can be imported, exported and deleted (from the db).
+ *
+ * @param string  $entity_type            The entity type to be listed
+ * @param bool    $changed_bundles_only   Flag to output only changed bundles, when TRUE.
+ *
+ * @return array The render array of the table.
+ */
+function pixel_structure_entity_type_list($entity_type, $changed_bundles_only = FALSE) {
   $header = array(
-    array('data' => t('Node types')),
+    array('data' => t('Bundles')),
     array('data' => t('Last import/export')),
     array('data' => t('Code created')),
     array('data' => t('Status')),
-    array('data' => t('Operations'), 'colspan' => 4),
+    array('data' => t('Operations'), 'colspan' => 3),
   );
   $rows = array();
 
-  // create node type rows
-  $node_types = _pixel_structure_node_types();
-  foreach ($node_types as $key => $node) {
+  // create bundle rows
+  $deletable_bundle = in_array($entity_type, array('node', 'taxonomy_term'));
+  $bundles = _pixel_structure_entity_type_bundles($entity_type);
+
+  foreach ($bundles as $key => $bundle) {
+    // initialize
+    $url_base = 'admin/structure/pixel_structure/' . $entity_type. '/' . $key;
+    $url_import = $url_base . '/import';
+    $url_export = $url_base . '/export';
+    $url_delete = $url_base . '/delete';
+    $url_clone  = $url_base . '/clone';
     $status = '';
     $import = '';
     $export = '';
     $delete = '';
     $last_import_export = '';
     $code_exported = '';
-    // Determine storage
-    switch ($node['storage']) {
-      case NODE_TYPE_IN_DATABASE | NODE_TYPE_IN_CODE:
-        if ($node['last_import_export'] == $node['code_exported']) {
-          // node is up to date
-          $status = t('<strong>Up-to-date</strong>');
-          $export = l(t('Export'), 'admin/structure/pixel_structure/manage/'. $key .'/export');
-        } else {
-          if ($node['last_import_export'] > $node['code_exported']) {
-            $status = t('<strong>DB is newer</strong>');
+
+    // build row according to bundle storage
+    switch ($bundle['storage']) {
+      case ENTITY_TYPE_IN_DATABASE | ENTITY_TYPE_IN_CODE:
+        if ($bundle['last_import_export'] == $bundle['code_exported']) {
+          if (_pixel_structure_db_equals_code($entity_type, $key, $bundle['data'])) {
+            // output only changed bundles
+            if ($changed_bundles_only) continue 2;
+
+            // node is up to date
+            $status = t('<strong>Up-to-date</strong>');
           } else {
-            $status = t('<strong>Code is newer</strong>');
+            // bundle in db has changed
+            $status = t('<strong>DB Changed</strong>');
+            $export = l(t('Export'), $url_export);
           }
-          // let user decide what to update
-          $import = l(t('Update DB'), 'admin/structure/pixel_structure/manage/'. $key .'/import');
-          $export = l(t('Update Code'), 'admin/structure/pixel_structure/manage/'. $key .'/export');
+
+        } else {
+          // file has changed
+          $status = t('<strong>Code Changed</strong>');
+          $import = l(t('Update'), $url_import);
+
         }
-        $delete = l(t('Delete'), 'admin/structure/pixel_structure/manage/'. $key .'/delete');
-        $last_import_export = ($node['last_import_export'] == -1) ? 'never' : date('d-M-Y H:i:s', $node['last_import_export']);
-        $code_exported = ($node['code_exported'] == 0) ? 'undefined' : date('d-M-Y H:i:s', $node['code_exported']);
+        $delete = l(t('Delete'), $url_delete);
+        $last_import_export = ($bundle['last_import_export'] == -1) ? 'never' : date('d-M-Y H:i:s', $bundle['last_import_export']);
+        $code_exported = ($bundle['code_exported'] == 0) ? 'undefined' : date('d-M-Y H:i:s', $bundle['code_exported']);
         break;
-      case NODE_TYPE_IN_DATABASE:
+
+      case ENTITY_TYPE_IN_DATABASE:
+        // output only changed bundles
+        if ($changed_bundles_only) continue 2;
+
         $status = t('<strong>DB only</strong>');
-        $export = l(t('Export'), 'admin/structure/pixel_structure/manage/'. $key .'/export');
-        $delete = l(t('Delete'), 'admin/structure/pixel_structure/manage/'. $key .'/delete');
-        $last_import_export = ($node['last_import_export'] == -1) ? 'never' : date('d-M-Y H:i:s', $node['last_import_export']);
+        $export = l(t('Export'), $url_export);
+        $delete = l(t('Delete'), $url_delete);
+        $last_import_export = ($bundle['last_import_export'] == -1) ? 'never' : date('d-M-Y H:i:s', $bundle['last_import_export']);
         break;
-      case NODE_TYPE_IN_CODE:
+
+      case ENTITY_TYPE_IN_CODE:
         $status = t('<strong>Code only</strong>');
-        $import = l(t('Import'), 'admin/structure/pixel_structure/manage/'. $key .'/import');
-        $code_exported = ($node['code_exported'] == 0) ? 'undefined' : date('d-M-Y H:i:s', $node['code_exported']);
+        $import = l(t('Import'), $url_import);
+        $code_exported = ($bundle['code_exported'] == 0) ? 'undefined' : date('d-M-Y H:i:s', $bundle['code_exported']);
         break;
     }
 
     $tablerow = array(
-      array('data' => check_plain($node['title'])),
+      array('data' => check_plain($bundle['title'])),
       array('data' => $last_import_export),
       array('data' => $code_exported),
       array('data' => $status),
       array('data' => $import),
       array('data' => $export),
-      array('data' => $delete),
-      //array('data' => l(t('Clone'), 'admin/structure/pixel_structure/manage/'. $key .'/clone')),
+      array('data' => $deletable_bundle ? $delete : ''),
+      //array('data' => l(t('Clone'), $url_clone)),
     );
     $rows[] = $tablerow;
   }
 
   if (empty($rows)) {
-    $rows[] = array(array('data' => t('No node types available.'), 'colspan' => 8));
+    if ($changed_bundles_only) {
+      $rows[] = array(array('data' => t('All bundles are up-to-date.'), 'colspan' => 7));
+    } else {
+      $rows[] = array(array('data' => t('No bundles available.'), 'colspan' => 7));
+    }
   }
 
   $build = array(
     '#theme' => 'table',
     '#header' => $header,
     '#rows' => $rows,
-    '#attributes' => array('id' => 'pixel-structure'),
+    '#attributes' => array('id' => 'pixel-structure-' . $entity_type),
   );
   return $build;
 }
 
 
 /**
- * Imports the node type from code.
+ * Imports the bundle of entity type from code.
  *
- * @param $node_type  string    The node type machine name to be imported.
+ * @param $entity_type  string    The entity type
+ * @param $bundle_key   string    The bundle name to be imported.
+ *
+ * @return array
  */
-function pixel_structure_node_type_import($node_type) {
+function pixel_structure_entity_type_import($entity_type, $bundle_key, $bulk_mode = FALSE) {
   // read import data
-  $nt_data = pixel_structure_node_type_import_data($node_type);
-  if ($nt_data) {
-    // import content type data
-    bundle_copy_import_submit(array(), $nt_data);
+  $bundle_data = pixel_structure_entity_type_import_data($entity_type, $bundle_key);
+  if ($bundle_data) {
+    // import bundle data
+    bundle_copy_import_submit(array(), $bundle_data);
 
-    // update time stamp (and code)
-    $code_exported = $nt_data['code_exported'];
+    // update import time stamp (also in code when not available)
+    $code_exported = $bundle_data['code_exported'];
     if ($code_exported == 0) {
-      // update export file with time stamp
+      // update export file with new time stamp
       $code_exported = time();
-      $nt_data['code_exported'] = $code_exported;
-      pixel_structure_node_type_export_data($node_type, $nt_data);
+      $bundle_data['code_exported'] = $code_exported;
+      pixel_structure_entity_type_export_data($entity_type, $bundle_key, $bundle_data);
 
     } else {
-      // update db time stamp
-      variable_set('pixel_structure_last_import_export_' . $node_type, $code_exported);
+      // update import time stamp
+      variable_set('pixel_structure_last_import_export_' . $entity_type . '_' . $bundle_key, $code_exported);
     }
 
 
   } else {
     // import data couldn't be read
-    drupal_set_message(t('%node data could not be imported. No data available!', array('%node' => $nt_data['title'])), 'error');
+    drupal_set_message(t('%bundle data of entity type "%type" could not be imported. File not available or data corrupt!', array('%bundle' => $bundle_data['title'], '%type' => $entity_type)), 'error');
   }
 
-  // return node type list
-  return pixel_structure_node_type_list();
+  // leave without redirect in bulk mode
+  if ($bulk_mode) return;
+
+  // return to entity type list
+  drupal_goto('admin/structure/pixel_structure');
 }
 
 /**
- * Exports the node type to code. The file name is "node_type.node" and is located in the nodes folder of this module.
+ * Exports the bundle of an entity type to code.
  *
- * @param $node_type  string    The node type machine name to be imported.
+ * @param $entity_type  string  The entity type
+ * @param $bundle_key   string    The bundle name to be imported.
+ *
+ * @return  array The export form.
  */
-function pixel_structure_node_type_export_form($form, &$form_state, $node_type) {
-  // skip first step (bundle selection), only export given node type
+function pixel_structure_entity_type_export_form($form, &$form_state, $entity_type, $bundle_key) {
+  // TODO: Export without form (all fields and field groups exported)
+
+  $form_state['entity_type'] = $entity_type;
+
   if (!isset($form_state['step'])) {
+    // skip first step (bundle selection), only export given node type
     $form_state['step'] = 2;
-    $form_state['node_type'] = $node_type;
+    $bundle_title = _bundle_copy_bundle_info($entity_type)[$bundle_key];
+    $form_state['bundle_key'] = $bundle_key;
+    $form_state['bundle_title'] = $bundle_title;
     $form_state['page_values'][1] = array(
-      'bundles' => array($node_type => $node_type),
+      'bundles' => array($bundle_key => $bundle_key),
     );
     // create form for step 2
-    $form = bundle_copy_export($form, $form_state);
+    $form = bundle_copy_export($form, $form_state, $entity_type);
 
     // adapt cancel button for step 2
     $form['actions']['cancel'] = array(
@@ -167,30 +254,31 @@ function pixel_structure_node_type_export_form($form, &$form_state, $node_type) 
 /**
  * Submit callback: export data.
  */
-function pixel_structure_node_type_export_form_submit($form, &$form_state) {
+function pixel_structure_entity_type_export_form_submit($form, &$form_state) {
   // update form state for multi-step form
+  $entity_type = $form_state['entity_type'];
   bundle_copy_export_submit($form, $form_state);
 
   // overwrite third step: export node type directly to file
   if (isset($form_state['step']) && $form_state['step'] == 3) {
 
-    // check if node type is available
-    if (isset($form_state['node_type'])) {
+    // check if bundle is available
+    if (isset($form_state['bundle_key'])) {
       // create export data
-      $node_type = $form_state['node_type'];
-      $data = _bundle_copy_export_data('node', $form_state['page_values']);
-      $nt_data = array(
-        'title' => node_type_get_names()[$node_type],
+      $bundle_key = $form_state['bundle_key'];
+      $data = _bundle_copy_export_data($entity_type, $form_state['page_values']);
+      $bundle_data = array(
+        'title' => $form_state['bundle_title'],
         'code_exported' => time(),
         'data' => $data,
       );
 
       // export data to file
-      pixel_structure_node_type_export_data($node_type, $nt_data);
+      pixel_structure_entity_type_export_data($entity_type, $bundle_key, $bundle_data);
 
     } else {
-      // node type not defined
-      drupal_set_message(t('Node type not available. No export performed!'), 'error');
+      // bundle not defined
+      drupal_set_message(t('Bundle of type "%type" not available. No export performed!', array('%type' => $entity_type)), 'error');
 
     }
 
@@ -202,62 +290,141 @@ function pixel_structure_node_type_export_form_submit($form, &$form_state) {
 }
 
 /**
- * Confirm form announcing the deletion of a node type.
+ * Returns confirm form requesting delete confirmation for a bundle of a given entity type.
  */
-function pixel_structure_node_type_delete_confirm($form, &$form_state, $node_type) {
-  module_load_include('inc', 'node', 'content_types');
-  $type = node_type_load($node_type);
-  $confirm = node_type_delete_confirm($form, $form_state, $type);
+function pixel_structure_entity_type_delete_confirm($form, &$form_state, $entity_type, $bundle_key) {
+  $confirm = null;
+  $form_state['entity_type'] = $entity_type;
+
+  switch ($entity_type) {
+    case 'node':
+      module_load_include('inc', 'node', 'content_types');
+      $type = node_type_load($bundle_key);
+      $confirm = node_type_delete_confirm($form, $form_state, $type);
+      break;
+
+    case 'taxonomy_term':
+      module_load_include('inc', 'taxonomy', 'taxonomy.admin');
+      $vid = taxonomy_vocabulary_get_names()[$bundle_key]->vid;
+      $confirm = taxonomy_vocabulary_confirm_delete($form, $form_state, $vid);
+      break;
+  }
+
+  // set correct cancel path
   $confirm['actions']['cancel']['#href'] = 'admin/structure/pixel_structure';
   $confirm['actions']['cancel']['#options']['path'] = 'admin/structure/pixel_structure';
+
   return $confirm;
 }
 
 /**
  * Deletes an existing node type.
  *
- * @see pixel_structure_node_type_delete_form()
+ * @see pixel_structure_entity_type_delete_form()
  */
-function pixel_structure_node_type_delete_confirm_submit($form, &$form_state) {
-  node_type_delete_confirm_submit($form, $form_state);
+function pixel_structure_entity_type_delete_confirm_submit($form, &$form_state) {
+  $entity_type = $form_state['entity_type'];
+  switch ($entity_type) {
+    case 'node':
+      node_type_delete_confirm_submit($form, $form_state);
+      break;
+
+    case 'taxonomy_term':
+      taxonomy_vocabulary_confirm_delete_submit($form, $form_state);
+      break;
+  }
 
   // redirect to pixel structure main config page
   $form_state['redirect'] = 'admin/structure/pixel_structure';
 }
 
 /**
- * Clones an existing node type.
+ * Clones an existing bundle of the given entity type.
  *
- * @param $node_type  string    The node type machine name to be cloned.
+ * @param $entity_type  string  The entity type
+ * @return array    Render array of the entry page.
  */
-function pixel_structure_node_type_clone($node_type) {
+function pixel_structure_node_type_clone($entity_type) {
   // TODO: clone the node type
 
-  // return node type list
-  return pixel_structure_node_type_list();
+  // return to entity type list
+  drupal_goto('admin/structure/pixel_structure/' . $entity_type);
 }
 
+/* =============================================================================
+ *   Entity type bulk operations
+ * ========================================================================== */
 /**
- * Returns an array of all available content types defined in the pixel structure (code and db).
+ * Imports all changed bundle code files at once for an entity type.
  *
- * @return  array   An associative array of all existing (in db) and importable content types (stored in code files).
- *                  The keys are the machine names of each content type and the value is an associative array
- *                  with the node machine name as key and the import data as value.
+ * @param $entity_type
  */
-function _pixel_structure_node_types() {
-  // get all node types in the database
-  $nodes = array();
-  foreach (node_type_get_names() as $key => $title) {
-    $last_import_export = variable_get('pixel_structure_last_import_export_' . $key, -1);
-    $nodes[$key] = array('title' => $title,
-                         'storage' => NODE_TYPE_IN_DATABASE,
-                         'last_import_export' => $last_import_export);
+function pixel_structure_entity_type_import_changed($entity_type) {
+  // get all bundles of entity type
+  $bundles = _pixel_structure_entity_type_bundles($entity_type);
+
+  foreach ($bundles as $key => $bundle) {
+    // get all bundles with changed code
+    switch ($bundle['storage']) {
+      case ENTITY_TYPE_IN_DATABASE | ENTITY_TYPE_IN_CODE:
+        if ($bundle['last_import_export'] == $bundle['code_exported']) {
+          // code not changed
+          continue 2;
+        }
+        break;
+
+      case ENTITY_TYPE_IN_DATABASE:
+        // no code
+        continue 2;
+        break;
+    }
+
+    // import bundle code
+    pixel_structure_entity_type_import($entity_type, $key, TRUE);
+
+    // reset status messages
+    $messages = drupal_set_message();
+    drupal_get_messages('status');
+    if (!isset($messages['error'])) {
+      drupal_set_message(t('Bundle "%title" has been successfully imported', array('%title' => $bundle['title'])));
+    }
   }
 
-  // scan nodes directory for nodes in code
-  $files = file_scan_directory(drupal_get_path('module', 'pixel_structure') . '/nodes', '#\.node$#');
+
+
+  // return to entity type list
+  drupal_goto('admin/structure/pixel_structure');
+}
+
+
+/* =============================================================================
+ *   Helper functions
+ * ========================================================================== */
+/**
+ * Helper function to return an array of all available bundles of an entity type found in code and db.
+ *
+ * @param $entity_type  string  The entity type
+ *
+ * @return array    An associative array of all bundles of an entity type (stored in code files or db).
+ *                  The key is the name of the bundle and the value is an associative array  with the bundle data.
+ */
+function _pixel_structure_entity_type_bundles($entity_type) {
+  // get all bundles of an entity types stored in the database
+  $bundles = array();
+  foreach (_bundle_copy_bundle_info($entity_type) as $key => $title) {
+    $last_import_export = variable_get('pixel_structure_last_import_export_' . $entity_type . '_' . $key, -1);
+    $bundles[$key] = array('title' => $title,
+                           'storage' => ENTITY_TYPE_IN_DATABASE,
+                           'last_import_export' => $last_import_export);
+  }
+
+  // scan entity type directory for bundles in code
+  $dir = '/' . $entity_type . 's/';
+  $preg_match = '#\.' . substr($entity_type, 0, 4) . '$#';
+  $files = file_scan_directory(drupal_get_path('module', 'pixel_structure') . $dir, $preg_match);
+
   foreach ($files as $filepath => $file) {
-    // import node type code
+    // import bundle code
     require $filepath;
 
     // Add data to list of nodes to provide.
@@ -275,21 +442,63 @@ function _pixel_structure_node_types() {
           $title = $bundle['name'];
         }
 
-        if (array_key_exists($key, $nodes)) {
+        if (array_key_exists($key, $bundles)) {
           // node type already in db
-          $nodes[$key]['storage'] |= NODE_TYPE_IN_CODE;
-          $nodes[$key]['code_exported'] = $code_exported;
+          $bundles[$key]['storage'] |= ENTITY_TYPE_IN_CODE;
+          $bundles[$key]['code_exported'] = $code_exported;
+          $bundles[$key]['data'] = $data;
 
         } else {
           // node type only in code
-          $nodes[$key] = array('title' => $title,
-                               'storage' => NODE_TYPE_IN_CODE,
-                               'code_exported' => $code_exported);
+          $bundles[$key] = array('title' => $title,
+                                 'storage' => ENTITY_TYPE_IN_CODE,
+                                 'code_exported' => $code_exported,
+                                 'data' => $data);
         }
       }
     }
   }
 
-  return $nodes;
+  return $bundles;
 }
 
+/**
+ * Helper function to compare bundles code and db version.
+ *
+ * @param $entity_type
+ * @param $bundle_key
+ * @param $import_data  array The imported data array.
+ *
+ * @return bool True, if bundles code is equal to the stored version.
+ */
+function _pixel_structure_db_equals_code($entity_type, $bundle_key, $import_data) {
+  // TODO: compare export string for exact comparison
+  // get fields and field group counts in code
+  $code_fields = 0;
+  if (isset($import_data['fields'])) {
+    $code_fields = count($import_data['fields']);
+  }
+  $code_fieldgroups = 0;
+  if (isset($import_data['fieldgroups'])) {
+    $code_fieldgroups = count($import_data['fieldgroups']);
+  }
+
+  // get counts in db
+  $form = array();
+  $form_state['step'] = 2;
+  $form_state['page_values'][1] = array(
+    'bundles' => array($bundle_key => $bundle_key),
+  );
+  // get fields and field groups for bundle
+  $form = bundle_copy_export($form, $form_state, $entity_type);
+  $db_fields = 0;
+  if (isset($form['fields'])) {
+    $db_fields = count($form['fields']['#options']);
+  }
+  $db_fieldgroups = 0;
+  if (isset($form['fieldgroups'])) {
+    $db_fieldgroups = count($form['fieldgroups']['#options']);
+  }
+
+  return $code_fields == $db_fields && $code_fieldgroups == $db_fieldgroups;
+}
